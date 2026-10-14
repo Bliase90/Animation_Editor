@@ -23,6 +23,7 @@ import { WebSocketServer } from 'ws';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { registerTools } from './tools.mjs';
+import { findBlender, blendToGlb, blendBytesToGlb, NO_BLENDER } from './blender.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, '..', 'dist');
@@ -114,7 +115,8 @@ export const appConnected = () => !!app;
 
 // ------------------------------------------------------------------ files for tools
 
-const ANIM_EXT = new Set(['.fbx', '.glb', '.gltf', '.bvh']);
+const ANIM_EXT = new Set(['.fbx', '.glb', '.gltf', '.bvh', '.blend']);
+const isBlend = (p) => path.extname(p).toLowerCase() === '.blend';
 
 async function walk(dir, out = [], depth = 0) {
   if (depth > 12) return out;
@@ -143,16 +145,33 @@ const files = {
     return { base: full, list: (await walk(full)).sort(), isDir: true };
   },
   importJob: () => importJob,
+  blender: () => findBlender(),
+  /** A download link the editor can load; .blend files are converted to GLB first. */
+  async loadable(full, rel = path.basename(full), pack) {
+    if (!isBlend(full)) return { url: fileUrl(full), path: rel, name: path.basename(full), pack };
+    if (!findBlender()) throw new Error(NO_BLENDER);
+    const glb = await blendToGlb(full);
+    return { url: fileUrl(glb), path: rel, name: path.basename(full).replace(/\.blend$/i, '.glb'), pack };
+  },
   async startImport(p, pack) {
     if (importJob && !importJob.done) throw new Error('An import is already running. Check import_status.');
     const { base, list, isDir } = await files.collect(p);
-    if (!list.length) throw new Error(`No FBX, GLB, glTF or BVH files under ${p}.`);
+    if (!list.length) throw new Error(`No FBX, GLB, glTF, BVH or .blend files under ${p}.`);
     const packName = pack || (isDir ? path.basename(base) : 'Imported');
     const job = importJob = { pack: packName, total: list.length, done: false, processed: 0, imported: 0, errors: [], startedAt: Date.now() };
     (async () => {
       const batch = 20;
       for (let i = 0; i < list.length; i += batch) {
-        const slice = list.slice(i, i + batch).map((f) => ({ url: fileUrl(f), path: path.relative(base, f) || path.basename(f), pack: packName }));
+        const slice = [];
+        for (const f of list.slice(i, i + batch)) {
+          const rel = path.relative(base, f) || path.basename(f);
+          try {
+            slice.push(await files.loadable(f, rel, packName));
+          } catch (e) {
+            job.errors.push(`${rel}: ${e.message}`);
+          }
+        }
+        if (!slice.length) { job.processed = Math.min(list.length, i + batch); continue; }
         try {
           const r = await callApp('import_animations', { files: slice }, 15 * 60 * 1000);
           job.imported += r.imported;
@@ -210,9 +229,35 @@ const server = http.createServer(async (req, res) => {
     if (!ALLOWED_HOSTS.has(req.headers.host ?? '')) { res.writeHead(403).end('Forbidden host'); return; }
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
     if (url.pathname === '/mcp') { await handleMcp(req, res); return; }
-    if (req.method === 'OPTIONS') { cors(req, res); res.writeHead(204).end(); return; }
+    if (req.method === 'OPTIONS') {
+      cors(req, res);
+      res.writeHead(204, { 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'content-type, x-filename' }).end();
+      return;
+    }
+    if (url.pathname === '/convert/blend' && req.method === 'POST') {
+      // Runs Blender, so only the editor itself may call it.
+      if (!ALLOWED_ORIGINS.has(req.headers.origin ?? '')) { res.writeHead(403).end('Forbidden origin'); return; }
+      cors(req, res);
+      if (!findBlender()) { res.writeHead(501, { 'content-type': 'text/plain' }).end(NO_BLENDER); return; }
+      const chunks = [];
+      let size = 0;
+      for await (const c of req) {
+        size += c.length;
+        if (size > 2 * 1024 ** 3) { res.writeHead(413).end('File too large'); return; }
+        chunks.push(c);
+      }
+      let name = String(req.headers['x-filename'] || 'upload.blend');
+      if (!/\.blend$/i.test(name)) name += '.blend';
+      try {
+        const glb = await blendBytesToGlb(Buffer.concat(chunks), name);
+        res.writeHead(200, { 'content-type': 'model/gltf-binary' }).end(glb);
+      } catch (e) {
+        res.writeHead(422, { 'content-type': 'text/plain' }).end(e.message);
+      }
+      return;
+    }
     if (url.pathname === '/health') {
-      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, app_connected: !!app, app_url: appUrl(), roots: ROOTS, export_dir: EXPORT_DIR }));
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, app_connected: !!app, app_url: appUrl(), roots: ROOTS, export_dir: EXPORT_DIR, blender: findBlender() }));
       return;
     }
     if (url.pathname.startsWith('/files/')) {
@@ -274,4 +319,5 @@ server.on('error', (e) => {
 server.listen(PORT, HOST, () => {
   log(`listening on http://${HOST}:${PORT}  (MCP: /mcp, editor: ${appUrl()})`);
   log(`allowed folders: ${ROOTS.join(', ')}  exports: ${EXPORT_DIR}`);
+  log(findBlender() ? `Blender: ${findBlender()} (.blend files supported)` : 'Blender not found: .blend files need Blender installed or BLENDER_PATH set');
 });

@@ -69,7 +69,7 @@ editor.on('model', () => { renderModelInfo(); renderJointList(); });
 
 async function openModelFiles(files: PickedFile[]) {
   const main = files.find((f) => MODEL_EXTENSIONS.includes(extOf(f.path)));
-  if (!main) { status('Pick an FBX, GLB or glTF file.', true); return; }
+  if (!main) { status('Pick an FBX, GLB, glTF or .blend file.', true); return; }
   status(`Loading ${main.file.name}…`);
   const asset = await guard('Open model', async () => editor.openModel(await toInput(main, files)));
   if (asset) status(`Loaded ${main.file.name}${asset.clips.length ? ` with ${asset.clips.length} animation(s), added to the library` : ''}.`);
@@ -111,7 +111,7 @@ let abort: AbortController | null = null;
 
 async function importAnimationFiles(files: PickedFile[], fallbackPack: string) {
   const anims = files.filter((f) => ANIMATION_EXTENSIONS.includes(extOf(f.path)));
-  if (!anims.length) { status('No FBX, GLB, glTF or BVH files found.', true); return; }
+  if (!anims.length) { status('No FBX, GLB, glTF, BVH or .blend files found.', true); return; }
   abort = new AbortController();
   const bar = $('import-progress');
   bar.hidden = false;

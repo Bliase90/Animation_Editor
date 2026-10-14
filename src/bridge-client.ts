@@ -3,6 +3,7 @@ import type { ViewName } from './viewer';
 import { buildGlb, buildReferencePack } from './exports';
 import { bytesToBase64, canvasToBlob } from './files';
 import { MIXAMO_BONES } from './rig';
+import { bridgeWsUrl } from './bridge-url';
 
 /**
  * Connects the editor to the local bridge (bridge/server.mjs), which exposes
@@ -14,12 +15,7 @@ export class BridgeClient {
 
   constructor(private editor: Editor, private onState: (connected: boolean) => void) {}
 
-  get url(): string {
-    const param = new URLSearchParams(location.search).get('bridge');
-    if (param) return param;
-    if (location.port === '7878') return `ws://${location.host}/ws`;
-    return 'ws://127.0.0.1:7878/ws';
-  }
+  get url(): string { return bridgeWsUrl(); }
 
   start() {
     const ws = new WebSocket(this.url);
@@ -87,9 +83,9 @@ export class BridgeClient {
       case 'import_animations': {
         let clips = 0;
         const errors: string[] = [];
-        for (const f of p.files as { url: string; path: string; pack: string }[]) {
+        for (const f of p.files as { url: string; path: string; name?: string; pack: string }[]) {
           const data = await fetchBytes(f.url);
-          const r = await ed.importAnimations([{ name: f.path.replace(/^.*[\\/]/, ''), data, source: f.pack, path: f.path }]);
+          const r = await ed.importAnimations([{ name: f.name ?? f.path.replace(/^.*[\\/]/, ''), data, source: f.pack, path: f.path }]);
           clips += r.clips;
           errors.push(...r.errors);
         }

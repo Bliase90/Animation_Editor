@@ -2,7 +2,7 @@
 
 A local animation editor for game characters with Mixamo rigs (for example Tripo3D models auto-rigged in Mixamo). Use it to show an AI exactly the motion you want:
 
-- **Open your character** (FBX, GLB or glTF).
+- **Open your character** (FBX, GLB, glTF, or `.blend` when Blender is installed).
 - **Import whole animation packs** (Mixamo downloads, Unreal-style packs such as a combat pack, converted game animations) into a searchable library. Every clip is retargeted onto your character automatically.
 - **Pose the character by its joints** (click a joint, drag the rotate gizmo or type angles), mirror poses, and **key poses on a timeline** to block out a new animation or fix an existing one.
 - **Write direction notes** ("heavier windup, 0.4 s hold at the top") next to the motion.
@@ -96,9 +96,14 @@ See [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) for the pose conventions and exam
 | `ANIMATOR_PORT` | `7878` | Bridge port |
 | `ANIMATOR_ROOTS` | your home folder | Folders the AI may read models and animations from (separate several with `;` on Windows, `:` elsewhere) |
 | `ANIMATOR_EXPORT_DIR` | `~/AnimationEditorExports` | Default folder for AI exports |
+| `BLENDER_PATH` | found automatically | Full path to `blender.exe` if Blender is installed somewhere unusual |
 | `ANIMATOR_NO_BROWSER` | unset | Set to `1` to stop the bridge opening a browser |
 
 The bridge only listens on 127.0.0.1, rejects other hosts and web origins, and never reads files outside `ANIMATOR_ROOTS`.
+
+## Blender files
+
+`.blend` files open like any other model or animation file, as long as Blender is installed on the same computer. The editor runs Blender in the background to convert the file (mesh, armature and every action) and caches the result, so the first open of a file takes a few seconds and later ones are instant. Blender is found on your PATH, in `Program Files\Blender Foundation` on drives C to F, or in a Steam install; otherwise set `BLENDER_PATH`. Actions you want included must be saved in the file (give them a fake user, the shield icon, if nothing uses them).
 
 ## Importing your animation sources
 

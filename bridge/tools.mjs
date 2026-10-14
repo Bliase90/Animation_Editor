@@ -26,7 +26,7 @@ export function registerTools(server, { callApp, appConnected, files }) {
         try { return json({ editor_open: true, ...(await callApp('status', {}, 30000, 8000)) }); }
         catch (e) { return json({ editor_open: false, message: e.message, editor_url: files.appUrl(), allowed_folders: files.roots }); }
       }
-      return json({ editor_open: true, ...(await callApp('status')), allowed_folders: files.roots, export_folder: files.exportDir });
+      return json({ editor_open: true, ...(await callApp('status')), allowed_folders: files.roots, export_folder: files.exportDir, blender: files.blender() ?? 'not found (.blend import unavailable)' });
     });
 
   tool('get_direction_notes',
@@ -40,16 +40,16 @@ export function registerTools(server, { callApp, appConnected, files }) {
     async (a) => json(await callApp('set_notes', a)));
 
   tool('load_model',
-    'Opens a rigged character (FBX, GLB or glTF with a Mixamo-style skeleton) from a path on the user\'s computer. Clips inside the file are added to the library.',
+    'Opens a rigged character (FBX, GLB, glTF, or .blend when Blender is installed, with a Mixamo-style skeleton) from a path on the user\'s computer. Clips inside the file are added to the library.',
     { path: z.string().describe('Absolute path, or ~/… for the home folder.') },
     async ({ path: p }) => {
       const full = files.checkPath(p, 'model');
-      const name = full.split(/[\\/]/).pop();
-      return json(await callApp('load_model', { url: files.fileUrl(full), name }, 5 * 60 * 1000));
+      const { url, name } = await files.loadable(full);
+      return json(await callApp('load_model', { url, name }, 5 * 60 * 1000));
     });
 
   tool('import_animations',
-    'Imports animation files into the editor\'s library from a file or a whole folder (searched recursively for FBX, GLB, glTF and BVH). Runs in the background; use import_status to follow it. Clips are retargeted onto the character when played.',
+    'Imports animation files into the editor\'s library from a file or a whole folder (searched recursively for FBX, GLB, glTF, BVH and, when Blender is installed, .blend). Runs in the background; use import_status to follow it. Clips are retargeted onto the character when played.',
     {
       path: z.string(),
       pack: z.string().optional().describe('Library pack name, e.g. "Mixamo", "Xplode Combat". Defaults to the folder name.'),

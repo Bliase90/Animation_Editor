@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { BVHLoader } from 'three/addons/loaders/BVHLoader.js';
+import { convertBlend } from './bridge-url';
 
-export const MODEL_EXTENSIONS = ['fbx', 'glb', 'gltf'];
-export const ANIMATION_EXTENSIONS = ['fbx', 'glb', 'gltf', 'bvh'];
+export const MODEL_EXTENSIONS = ['fbx', 'glb', 'gltf', 'blend'];
+export const ANIMATION_EXTENSIONS = ['fbx', 'glb', 'gltf', 'bvh', 'blend'];
 
 export interface LoadedAsset {
   fileName: string;
@@ -50,8 +51,10 @@ export async function loadAsset(input: FileInput): Promise<LoadedAsset> {
     if (ext === 'fbx') {
       scene = new FBXLoader(manager).parse(input.data, '');
       clips = (scene as THREE.Object3D & { animations: THREE.AnimationClip[] }).animations ?? [];
-    } else if (ext === 'glb' || ext === 'gltf') {
-      const gltf = await new GLTFLoader(manager).parseAsync(input.data, '');
+    } else if (ext === 'glb' || ext === 'gltf' || ext === 'blend') {
+      // Browsers cannot read .blend; the bridge converts it with the user's Blender.
+      const data = ext === 'blend' ? await convertBlend(input.name, input.data) : input.data;
+      const gltf = await new GLTFLoader(manager).parseAsync(data, '');
       scene = gltf.scene;
       clips = gltf.animations;
     } else if (ext === 'bvh') {
@@ -68,7 +71,9 @@ export async function loadAsset(input: FileInput): Promise<LoadedAsset> {
     clips = clips.filter((c) => c.duration > 0 && c.tracks.length > 0);
     clips.forEach((c, i) => {
       // Mixamo exports every clip as "mixamo.com"; use the file name instead.
-      if (!c.name || /^mixamo\.com$/i.test(c.name) || /^take\s*0*1$/i.test(c.name) || /^armature\|/i.test(c.name)) {
+      // Blender actions often look like "Armature|mixamo.com|Layer0".
+      c.name = c.name.replace(/^[^|]*\|/, '').replace(/\|Layer\d*$/i, '');
+      if (!c.name || /^mixamo\.com$/i.test(c.name) || /^take\s*0*1$/i.test(c.name)) {
         c.name = clips.length > 1 ? `${base} ${i + 1}` : base;
       }
     });

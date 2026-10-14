@@ -1,6 +1,6 @@
 # Importing characters and animations
 
-The editor reads **FBX**, **GLB/glTF** and **BVH**. Every skeleton is matched to Mixamo bone names, so clips from different sources can play on your Tripo3D/Mixamo character. Bone naming is detected automatically for:
+The editor reads **FBX**, **GLB/glTF**, **BVH** and, when Blender is installed, **.blend** (converted in the background with your Blender; see the README). Every skeleton is matched to Mixamo bone names, so clips from different sources can play on your Tripo3D/Mixamo character. Bone naming is detected automatically for:
 
 | Rig | Example bone names | Detected as |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ Extracting assets may break the game's terms of use; that decision is yours.
 
 | Format | What to do |
 | --- | --- |
-| `.blend` | Open in Blender, **File → Export → FBX** (Armature + Mesh, *Bake Animation* on) |
+| `.blend` | Opens directly if Blender is installed. Without Blender: **File → Export → FBX** (Armature + Mesh, *Bake Animation* on) |
 | `.ma` / `.mb` (Maya) | **File → Export Selection → FBX** with *Animation* enabled |
 | `.bvh` (mocap) | Imports directly |
 | `.dae`, `.anim`, game-specific formats | Convert to FBX in Blender or the game's modding tool first |
