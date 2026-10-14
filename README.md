@@ -22,7 +22,9 @@ npm install
 npm start          # builds the editor and serves it with the AI bridge
 ```
 
-Open <http://127.0.0.1:7878>. You start with a built-in mannequin; click **Open model…** to load your own character.
+Open <http://127.0.0.1:7878>.
+
+**On Windows** you can skip the commands: install Node.js LTS (from [nodejs.org](https://nodejs.org) or `winget install OpenJS.NodeJS.LTS`), then double-click `start.bat`. It installs what it needs the first time and opens the editor in your browser. Keep its window open while you work. You start with a built-in mannequin; click **Open model…** to load your own character.
 
 For development with hot reload use `npm run dev` and open <http://127.0.0.1:5173>.
 
