@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Animation Editor</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%224%22 r=%223%22 fill=%22%234fc3f7%22/%3E%3Cpath d=%22M3 15l5-8 5 8%22 stroke=%22%234fc3f7%22 stroke-width=%222%22 fill=%22none%22/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header>
+      <strong class="brand">Animation Editor</strong>
+      <button id="btn-open-model" class="primary" title="FBX, GLB, glTF or .blend with a Mixamo-style rig">Open model…</button>
+      <button id="btn-mannequin" title="Built-in Mixamo-rigged mannequin">Mannequin</button>
+      <span id="status" class="status"></span>
+      <span class="spacer"></span>
+      <span id="ai-link" class="pill off" title="Claude Code / Codex connection through the local bridge">AI link: off</span>
+      <button id="btn-help">Help</button>
+      <input id="file-model" type="file" accept=".fbx,.glb,.gltf,.blend,.bin,.png,.jpg,.jpeg" multiple hidden />
+      <input id="file-anims" type="file" accept=".fbx,.glb,.gltf,.bvh,.blend,.bin" multiple hidden />
+      <input id="folder-anims" type="file" webkitdirectory multiple hidden />
+      <input id="file-bonemap" type="file" accept=".json" hidden />
+    </header>
+
+    <aside id="left">
+      <section>
+        <h2>Model</h2>
+        <div id="model-info" class="muted">No model</div>
+        <label class="row"><input id="chk-joints" type="checkbox" checked /> Show joints</label>
+        <div class="row">
+          <button id="btn-bonemap" title="Load a JSON map of your rig's bone names to Mixamo names">Bone map…</button>
+          <button id="btn-bonemap-template" title="Download a bone map template for the current model">Template</button>
+        </div>
+      </section>
+      <section class="grow">
+        <h2>Animation library</h2>
+        <div class="row">
+          <button id="btn-import-files">Import files…</button>
+          <button id="btn-import-folder" title="Import a whole pack folder (e.g. all Mixamo downloads)">Import folder…</button>
+        </div>
+        <div id="import-progress" class="progress" hidden><div></div><span></span><button id="btn-import-cancel">Cancel</button></div>
+        <input id="lib-search" type="search" placeholder="Search animations… (e.g. sword slash)" />
+        <div class="row">
+          <select id="lib-source"><option value="">All packs</option></select>
+          <label class="row nowrap"><input id="chk-inplace" type="checkbox" /> In place</label>
+        </div>
+        <ul id="lib-list" class="list"></ul>
+        <div class="row">
+          <span id="lib-count" class="muted"></span>
+          <span class="spacer"></span>
+          <button id="btn-lib-delete" class="danger" title="Delete the selected pack from the library">Delete pack</button>
+        </div>
+      </section>
+    </aside>
+
+    <main>
+      <div id="viewport">
+        <div class="views">
+          <button data-view="front">Front</button>
+          <button data-view="three_quarter">¾</button>
+          <button data-view="left">Left</button>
+          <button data-view="right">Right</button>
+          <button data-view="back">Back</button>
+          <button data-view="top">Top</button>
+        </div>
+        <div id="drop-hint" class="drop-hint" hidden>Drop a model or animation files</div>
+      </div>
+      <div id="timeline">
+        <div class="row transport">
+          <button id="btn-play" title="Space">▶</button>
+          <label class="row nowrap"><input id="chk-loop" type="checkbox" checked /> Loop</label>
+          <label class="row nowrap">Speed <select id="sel-speed"><option>0.25</option><option>0.5</option><option selected>1</option><option>1.5</option><option>2</option></select></label>
+          <span id="clip-label" class="clip-label">No animation</span>
+          <span class="spacer"></span>
+          <span id="time-label" class="mono">0.00 / 0.00 s</span>
+        </div>
+        <div id="track" class="track"><div id="keys"></div><div id="playhead"></div></div>
+        <div class="row edit">
+          <button id="btn-new-clip" title="Start a new clip from the current pose">New clip</button>
+          <button id="btn-edit-clip" title="Turn the playing animation into editable keys">Edit this animation</button>
+          <span id="edit-fields" class="row" hidden>
+            <input id="edit-name" type="text" size="16" />
+            <label class="row nowrap">Length <input id="edit-duration" type="number" min="0.1" step="0.1" style="width:5em" /> s</label>
+            <label class="row nowrap">FPS <input id="edit-fps" type="number" min="1" max="120" step="1" style="width:4em" /></label>
+            <button id="btn-key" class="primary" title="K">Key pose</button>
+            <button id="btn-del-key" title="Delete the key at the playhead">Delete key</button>
+            <button id="btn-save-clip">Save to library</button>
+            <button id="btn-close-edit">Close</button>
+          </span>
+          <span id="dirty" class="muted" hidden>unkeyed changes</span>
+        </div>
+      </div>
+    </main>
+
+    <aside id="right">
+      <section>
+        <h2>Joint <span id="joint-name" class="muted">— click a joint</span></h2>
+        <div id="joint-controls" hidden>
+          <div class="axis"><label>X</label><input id="rot-x" type="range" min="-180" max="180" step="0.5" /><input id="num-x" type="number" step="1" /></div>
+          <div class="axis"><label>Y</label><input id="rot-y" type="range" min="-180" max="180" step="0.5" /><input id="num-y" type="number" step="1" /></div>
+          <div class="axis"><label>Z</label><input id="rot-z" type="range" min="-180" max="180" step="0.5" /><input id="num-z" type="number" step="1" /></div>
+          <div class="row">
+            <button id="btn-gizmo-rotate" title="E">Rotate</button>
+            <button id="btn-gizmo-move" title="W (hips only)">Move</button>
+            <button id="btn-reset-joint">Reset joint</button>
+          </div>
+          <p class="hint">Degrees away from the T-pose. X = pitch, Y = turn, Z = roll, in the character's own axes.</p>
+        </div>
+        <select id="joint-list" size="8"></select>
+      </section>
+      <section>
+        <h2>Pose</h2>
+        <div class="row wrap">
+          <button id="btn-reset-pose">Reset to T-pose</button>
+          <button id="btn-mirror-lr" title="Copy the left side onto the right">Mirror L→R</button>
+          <button id="btn-mirror-rl" title="Copy the right side onto the left">Mirror R→L</button>
+          <button id="btn-mirror-swap">Flip</button>
+        </div>
+      </section>
+      <section class="grow">
+        <h2>Direction notes for the AI</h2>
+        <textarea id="notes" placeholder="Describe what you want: timing, weight, intent, what is wrong with the current version…"></textarea>
+      </section>
+      <section>
+        <h2>Export</h2>
+        <div class="row wrap">
+          <button id="btn-export-pack" class="primary" title="Contact sheets, pose JSON and notes in one zip">Reference pack</button>
+          <button id="btn-export-sheet">Contact sheet</button>
+          <button id="btn-export-video">Video</button>
+          <button id="btn-export-json">Pose JSON</button>
+          <button id="btn-export-glb">GLB</button>
+        </div>
+      </section>
+    </aside>
+
+    <dialog id="help">
+      <h2>Quick help</h2>
+      <ul>
+        <li><b>Open model…</b> loads your Tripo3D/Mixamo character (FBX or GLB). Drop files on the viewport too.</li>
+        <li><b>Import files / folder</b> adds animations to the library. Packs are grouped by folder name.</li>
+        <li>Click a coloured joint to pose it (green = left, orange = right). <b>E</b> rotate, <b>W</b> move hips, <b>Esc</b> deselect.</li>
+        <li><b>New clip</b>, pose, <b>K</b> to key, move the playhead, pose, <b>K</b> again. <b>Space</b> plays.</li>
+        <li>Write what you want in <b>Direction notes</b>, then export a <b>Reference pack</b> or let Claude Code / Codex read it live through the AI link (see README).</li>
+      </ul>
+      <form method="dialog"><button>Close</button></form>
+    </dialog>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
