@@ -1,0 +1,35 @@
+{
+  "name": "animation-editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local animation editor for Mixamo-rigged characters that Claude Code and Codex can drive over MCP.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:app": "vite",
+    "bridge": "node bridge/server.mjs",
+    "build": "tsc --noEmit && vite build",
+    "start": "npm run build && node bridge/server.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "node tests/e2e.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "fflate": "^0.8.2",
+    "three": "^0.170.0",
+    "ws": "^8.18.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/three": "^0.170.0",
+    "playwright-core": "^1.49.1",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}

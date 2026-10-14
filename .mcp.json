@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "animation-editor": {
+      "command": "node",
+      "args": ["bridge/stdio.mjs"]
+    }
+  }
+}
